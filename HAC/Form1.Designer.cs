@@ -41,16 +41,16 @@
             // listBox1
             // 
             this.listBox1.FormattingEnabled = true;
-            this.listBox1.ItemHeight = 15;
+            this.listBox1.ItemHeight = 17;
             this.listBox1.Items.AddRange(new object[] {
             "Stochastic Oscillator",
             "Relative Strength Index",
             "Money Flow Index",
             "Force Index",
             "Donchian Channel"});
-            this.listBox1.Location = new System.Drawing.Point(6, 70);
+            this.listBox1.Location = new System.Drawing.Point(6, 79);
             this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(243, 94);
+            this.listBox1.Size = new System.Drawing.Size(243, 106);
             this.listBox1.TabIndex = 0;
             // 
             // groupBox1
@@ -59,9 +59,9 @@
             this.groupBox1.Controls.Add(this.label1);
             this.groupBox1.Controls.Add(this.textBox1);
             this.groupBox1.Controls.Add(this.listBox1);
-            this.groupBox1.Location = new System.Drawing.Point(12, 12);
+            this.groupBox1.Location = new System.Drawing.Point(12, 14);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(556, 192);
+            this.groupBox1.Size = new System.Drawing.Size(556, 218);
             this.groupBox1.TabIndex = 4;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Select Indicator and Ticker";
@@ -69,36 +69,36 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("SimSun", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.label2.Location = new System.Drawing.Point(356, 36);
+            this.label2.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Bold);
+            this.label2.Location = new System.Drawing.Point(356, 41);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(75, 20);
+            this.label2.Size = new System.Drawing.Size(69, 24);
             this.label2.TabIndex = 4;
             this.label2.Text = "Ticker";
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Font = new System.Drawing.Font("SimSun", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.label1.Location = new System.Drawing.Point(46, 36);
+            this.label1.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Bold);
+            this.label1.Location = new System.Drawing.Point(46, 41);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(108, 20);
+            this.label1.Size = new System.Drawing.Size(93, 24);
             this.label1.TabIndex = 3;
             this.label1.Text = "Indicator";
             // 
             // textBox1
             // 
-            this.textBox1.Location = new System.Drawing.Point(313, 70);
+            this.textBox1.Location = new System.Drawing.Point(313, 79);
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(172, 25);
             this.textBox1.TabIndex = 2;
             // 
             // button2
             // 
-            this.button2.Font = new System.Drawing.Font("SimSun", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.button2.Location = new System.Drawing.Point(372, 210);
+            this.button2.Font = new System.Drawing.Font("Arial", 9F, System.Drawing.FontStyle.Bold);
+            this.button2.Location = new System.Drawing.Point(372, 238);
             this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(154, 35);
+            this.button2.Size = new System.Drawing.Size(154, 40);
             this.button2.TabIndex = 6;
             this.button2.Text = "Shut Down";
             this.button2.UseVisualStyleBackColor = true;
@@ -106,10 +106,10 @@
             // 
             // button1
             // 
-            this.button1.Font = new System.Drawing.Font("SimSun", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.button1.Location = new System.Drawing.Point(62, 210);
+            this.button1.Font = new System.Drawing.Font("Arial", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.button1.Location = new System.Drawing.Point(62, 238);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(154, 35);
+            this.button1.Size = new System.Drawing.Size(154, 40);
             this.button1.TabIndex = 5;
             this.button1.Text = "Connect";
             this.button1.UseVisualStyleBackColor = true;
@@ -117,12 +117,13 @@
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 17F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(581, 257);
+            this.ClientSize = new System.Drawing.Size(581, 291);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
+            this.Font = new System.Drawing.Font("Arial", 9F);
             this.Name = "Form1";
             this.Text = "Form1";
             this.groupBox1.ResumeLayout(false);
