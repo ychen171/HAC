@@ -8,8 +8,8 @@ using System.Diagnostics;
 
 namespace HAC
 {
-    // Unused!
-    class SystemManager
+    // All Strategies!   Undone! DO NOT USE!
+    class SystemManager01
     {
         private Instrument m_Instrument;
         private List<Tick> m_TickList;
@@ -22,8 +22,8 @@ namespace HAC
         private double m_Max;
         private double m_Min;
         private List<double> m_RSV;
-        private double m_K=50;
-        private double m_D=50;
+        private double m_K = 50;
+        private double m_D = 50;
 
         private int m_Position;
         private int m_NetPos;
@@ -43,7 +43,7 @@ namespace HAC
         public event UpdateEventHandler OnSystemUpdate;
         // public event FillEventHandler OnFill;
 
-        public SystemManager()
+        public SystemManager01()
         {
             m_Matcher = new TradeMatcher(RoundTurnMethod.FIFO);
 
@@ -61,7 +61,7 @@ namespace HAC
             m_Qty = 10;
         }
 
-        ~SystemManager()
+        ~SystemManager01()
         {
             //Debug::WriteLine( "SystemManager dying." );
         }
@@ -104,7 +104,7 @@ namespace HAC
                 {
                     bool m_Bool = m_Instrument.EnterOrder("B", m_Qty, "TARGET/STOP OUT");
                 }
-                
+
                 // First time only and on reset, set initial state.
                 if (m_Start)
                 {
@@ -120,7 +120,7 @@ namespace HAC
                 {
                     // Change state.
                     m_State = Cross_State.ABOVE;
-                    
+
                     // If we are already short, first get flat.
                     if (m_Position < 0)
                     {

@@ -10,17 +10,17 @@ using System.Windows.Forms;
 
 namespace HAC
 {
-    public partial class Form2 : Form
+    public partial class Form3 : Form
     {
-        private SystemManager02 m_Manager;
+        private SystemManager03 m_Manager;
         private Timer m_Timer;
         System.IO.StreamWriter price_file;
 
-        public Form2()
+        public Form3()
         {
             InitializeComponent();
 
-            price_file = new System.IO.StreamWriter("C:\\temp\\Data02.csv", true);
+            price_file = new System.IO.StreamWriter("C:\\temp\\Data03.csv", true);
 
             m_Timer = new Timer();
             m_Timer.Interval = 20000;
@@ -29,7 +29,7 @@ namespace HAC
 
             if (m_Manager == null)
             {
-                m_Manager = new SystemManager02();
+                m_Manager = new SystemManager03();
                 m_Manager.OnSystemUpdate += new UpdateEventHandler(OnSystemUpdate);
 
                 m_Manager.Qty = Convert.ToDouble(numericUpDown1.Value);
@@ -43,12 +43,11 @@ namespace HAC
             dataGridView3.DataSource = m_Manager.Matcher.RoundTurns;
         }
 
-        private void OnSystemUpdate(double price, double qty, double slow, double fast, double target, double stop)
+        private void OnSystemUpdate(double price, double qty, double rsi, double rs, double target, double stop)
         {
             // Event handler prints the data to the GUI.
             textBox1.Text = (price / 100.00).ToString();
-            textBox2.Text = slow.ToString();
-            textBox3.Text = fast.ToString();
+            textBox2.Text = rsi.ToString();
             textBox4.Text = target.ToString();
             textBox5.Text = stop.ToString();
             textBox6.Text = qty.ToString();
@@ -67,16 +66,16 @@ namespace HAC
                     button1.Text = "START";
             }
         }
-        
+
         private void button2_Click(object sender, EventArgs e)
         {
             if (m_Manager != null)
             {
                 m_Manager.ShutDown();
 
-                m_Manager.Matcher.WriteBuys("C:\\temp\\Trade Matching Algos\\buys02.csv");
-                m_Manager.Matcher.WriteSells("C:\\temp\\Trade Matching Algos\\sells02.csv");
-                m_Manager.Matcher.WriteRoundTurns("C:\\temp\\Trade Matching Algos\\roundturns02.csv");
+                m_Manager.Matcher.WriteBuys("C:\\temp\\Trade Matching Algos\\buys03.csv");
+                m_Manager.Matcher.WriteSells("C:\\temp\\Trade Matching Algos\\sells03.csv");
+                m_Manager.Matcher.WriteRoundTurns("C:\\temp\\Trade Matching Algos\\roundturns03.csv");
 
                 m_Timer.Tick -= new EventHandler(m_Timer_Tick);
                 m_Timer = null;
@@ -140,5 +139,6 @@ namespace HAC
             chart1.ChartAreas[0].AxisX.Maximum = DateTime.FromOADate(chart1.Series[0].Points[0].XValue).AddSeconds(5000).ToOADate();
             chart1.Invalidate();
         }
+
     }
 }

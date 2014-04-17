@@ -8,8 +8,8 @@ using System.Diagnostics;
 
 namespace HAC
 {
-    // Unused!
-    class SystemManager
+    // Stochastic Oscillator Strategy
+    class SystemManager02
     {
         private Instrument m_Instrument;
         private List<Tick> m_TickList;
@@ -22,8 +22,8 @@ namespace HAC
         private double m_Max;
         private double m_Min;
         private List<double> m_RSV;
-        private double m_K=50;
-        private double m_D=50;
+        private double m_K;
+        private double m_D;
 
         private int m_Position;
         private int m_NetPos;
@@ -43,7 +43,7 @@ namespace HAC
         public event UpdateEventHandler OnSystemUpdate;
         // public event FillEventHandler OnFill;
 
-        public SystemManager()
+        public SystemManager02()
         {
             m_Matcher = new TradeMatcher(RoundTurnMethod.FIFO);
 
@@ -58,10 +58,10 @@ namespace HAC
 
             m_Position = 0;
             m_Go = false;
-            m_Qty = 10;
+            m_Qty = 0;
         }
 
-        ~SystemManager()
+        ~SystemManager02()
         {
             //Debug::WriteLine( "SystemManager dying." );
         }
@@ -70,29 +70,37 @@ namespace HAC
         {
             m_TickList.Add(m_Tick);
 
-            m_Max = 0;
-            m_Min = 1000000000;
+            m_K = 0;
+            m_D = 0;
 
-            if (m_Ticks > 0)
+            // Begin calculating
+            if (m_Ticks > 0 && m_TickList.Count > m_Ticks)
             {
-                if (m_TickList.Count > m_Ticks)
+                // Calculate the K and D values.
+                m_Max = 0;
+                m_Min = 1000000000;
+                for (int i = m_TickList.Count - m_Ticks; i < m_TickList.Count - 1; i++)
                 {
-                    // Calculate the K and D values.
-                    for (int i = m_TickList.Count - m_Ticks; i < m_TickList.Count - 1; i++)
-                    {
-                        m_Max = Math.Max(m_Max, m_TickList[i].Price);
-                        m_Min = Math.Min(m_Min, m_TickList[i].Price);
-                    }
-                    m_RSV.Add((m_TickList.Last().Price - m_Min) / (m_Max - m_Min) * 100);
-                    Debug.WriteLine(m_RSV.Last());
-                    if (m_RSV.Count >= 3)
-                        m_D = (m_RSV[m_RSV.Count - 1] + m_RSV[m_RSV.Count - 2] + m_RSV[m_RSV.Count - 3]) / 3;
-                    m_K = m_RSV.Last();
-                    Debug.WriteLine(m_K);
-                    Debug.WriteLine(m_D);
+                    m_Max = Math.Max(m_Max, m_TickList[i].Price);
+                    m_Min = Math.Min(m_Min, m_TickList[i].Price);
                 }
-            }
+                m_RSV.Add((m_TickList.Last().Price - m_Min) / (m_Max - m_Min) * 100);
+                //Debug.WriteLine(m_RSV.Last());
+                if (m_RSV.Count >= 3)
+                    m_D = (m_RSV[m_RSV.Count - 1] + m_RSV[m_RSV.Count - 2] + m_RSV[m_RSV.Count - 3]) / 3;
+                m_K = m_RSV.Last();
+                //Debug.WriteLine(m_K);
+                //Debug.WriteLine(m_D);
+                
+                //// Set the Cross State.
+                //if (m_K > m_D)
+                //    m_State = Cross_State.ABOVE;
+                //else
+                //    m_State = Cross_State.BELOW;
 
+            }
+            
+            // START/STOP Switch
             if (m_Go)
             {
                 // If we already have a position on, and have either met out target or stop price, get out.
@@ -104,7 +112,7 @@ namespace HAC
                 {
                     bool m_Bool = m_Instrument.EnterOrder("B", m_Qty, "TARGET/STOP OUT");
                 }
-                
+
                 // First time only and on reset, set initial state.
                 if (m_Start)
                 {
@@ -120,7 +128,7 @@ namespace HAC
                 {
                     // Change state.
                     m_State = Cross_State.ABOVE;
-                    
+
                     // If we are already short, first get flat.
                     if (m_Position < 0)
                     {

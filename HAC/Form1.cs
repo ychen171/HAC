@@ -13,12 +13,13 @@ namespace HAC
     public partial class Form1 : Form
     {
         List<Form2> m_KD;
-        //List<Form3> m_RSI;
+        List<Form3> m_RSI;
 
         public Form1()
         {
             InitializeComponent();
             m_KD = new List<Form2>();
+            m_RSI = new List<Form3>();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -34,6 +35,9 @@ namespace HAC
                 
                 // Relative Strength Index
                 case 1:
+                    m_RSI.Add(new Form3());
+                    m_RSI.Last().Text = textBox1.Text;
+                    m_RSI.Last().Show();
                     break;
                 
                 // Money Flow Index

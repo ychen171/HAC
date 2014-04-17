@@ -372,7 +372,7 @@
             this.groupBox1.Size = new System.Drawing.Size(493, 91);
             this.groupBox1.TabIndex = 62;
             this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Instrument";
+            this.groupBox1.Text = "Stochastic Oscillator";
             // 
             // textBox3
             // 
