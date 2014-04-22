@@ -30,7 +30,7 @@ namespace HAC
             if (m_Manager == null)
             {
                 m_Manager = new SystemManager02();
-                m_Manager.OnSystemUpdate += new UpdateEventHandler(OnSystemUpdate);
+                m_Manager.OnSystemUpdate += new OnSystemUpdateEventHandler(OnSystemUpdate);
 
                 m_Manager.Qty = Convert.ToDouble(numericUpDown1.Value);
                 m_Manager.Ticks = Convert.ToInt32(numericUpDown2.Value);

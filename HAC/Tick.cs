@@ -8,15 +8,33 @@ namespace HAC
 {
     class Tick
     {
-        public double Price;
-        public DateTime Time;
-        public double Qty;
+        private double m_Price;
+        public DateTime m_Time;
+        public double m_Qty;
 
         public Tick(DateTime T, double P, double Q)
         {
-            Time = T;
-            Price = P;
-            Qty = Q;
+            m_Time = T;
+            m_Price = P;
+            m_Qty = Q;
+        }
+
+        public DateTime Time
+        {
+            get { return m_Time; }
+            set { m_Time = value; }
+        }
+
+        public double Price
+        {
+            get { return m_Price; }
+            set { m_Price = value; }
+        }
+
+        public double Qty
+        {
+            get { return m_Qty; }
+            set { m_Qty = value; }
         }
     }
 }

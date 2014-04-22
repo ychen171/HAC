@@ -8,7 +8,6 @@ using System.Diagnostics;
 
 namespace HAC
 {
-    // Unused!
     class SystemManager
     {
         private Instrument m_Instrument;
@@ -16,17 +15,17 @@ namespace HAC
 
         private bool m_Go;
         private bool m_Start;
-
+        //Ticks from GUI
         private int m_Ticks;
 
         private double m_Max;
         private double m_Min;
         private List<double> m_RSV;
-        private double m_K=50;
-        private double m_D=50;
+        private double m_K;
+        private double m_D;
 
-        private int m_Position;
-        private int m_NetPos;
+        private double m_Position;
+        private double m_NetPos;
 
         private bool m_Bool;
         private Cross_State m_State;
@@ -35,12 +34,14 @@ namespace HAC
 
         private double m_Target;
         private double m_Stop;
+        //Target ticks from GUI
         private int m_TargetTicks;
+        //Stop ticks from GUI
         private int m_StopTicks;
 
         private TradeMatcher m_Matcher;
 
-        public event UpdateEventHandler OnSystemUpdate;
+        public event OnSystemUpdateEventHandler OnSystemUpdate;
         // public event FillEventHandler OnFill;
 
         public SystemManager()
@@ -48,9 +49,9 @@ namespace HAC
             m_Matcher = new TradeMatcher(RoundTurnMethod.FIFO);
 
             // Create a new Instrument object.
-            m_Instrument = new Instrument();
-            m_Instrument.OnInstrumentUpdate += new InstrumentUpdateEventHandler(OnInstrumentUpdate);
-            m_Instrument.OnFill += new FillEventHandler(OnInstrumentFill);
+            m_Instrument = new Instrument("ES", "201406", Instrument.InstrumentType.FUTURE);
+            m_Instrument.BidAskUpdate += new DataUpdateEventHandler(OnInstrumentUpdate);
+            m_Instrument.FillUpdate += new FillEventHandler(OnInstrumentFill);
 
             // Create a new SortedList to hold the Tick objects.
             m_TickList = new List<Tick>();
@@ -58,7 +59,7 @@ namespace HAC
 
             m_Position = 0;
             m_Go = false;
-            m_Qty = 10;
+            m_Qty = 0;
         }
 
         ~SystemManager()
@@ -70,41 +71,49 @@ namespace HAC
         {
             m_TickList.Add(m_Tick);
 
-            m_Max = 0;
-            m_Min = 1000000000;
+            m_K = 0;
+            m_D = 0;
 
-            if (m_Ticks > 0)
+            // Begin calculating
+            if (m_Ticks > 0 && m_TickList.Count > m_Ticks)
             {
-                if (m_TickList.Count > m_Ticks)
+                // Calculate the K and D values.
+                m_Max = 0;
+                m_Min = 1000000000;
+                for (int i = m_TickList.Count - m_Ticks; i < m_TickList.Count - 1; i++)
                 {
-                    // Calculate the K and D values.
-                    for (int i = m_TickList.Count - m_Ticks; i < m_TickList.Count - 1; i++)
-                    {
-                        m_Max = Math.Max(m_Max, m_TickList[i].Price);
-                        m_Min = Math.Min(m_Min, m_TickList[i].Price);
-                    }
-                    m_RSV.Add((m_TickList.Last().Price - m_Min) / (m_Max - m_Min) * 100);
-                    Debug.WriteLine(m_RSV.Last());
-                    if (m_RSV.Count >= 3)
-                        m_D = (m_RSV[m_RSV.Count - 1] + m_RSV[m_RSV.Count - 2] + m_RSV[m_RSV.Count - 3]) / 3;
-                    m_K = m_RSV.Last();
-                    Debug.WriteLine(m_K);
-                    Debug.WriteLine(m_D);
+                    m_Max = Math.Max(m_Max, m_TickList[i].Price);
+                    m_Min = Math.Min(m_Min, m_TickList[i].Price);
                 }
+                m_RSV.Add((m_TickList.Last().Price - m_Min) / (m_Max - m_Min) * 100);
+                //Debug.WriteLine(m_RSV.Last());
+                if (m_RSV.Count >= 3)
+                    m_D = (m_RSV[m_RSV.Count - 1] + m_RSV[m_RSV.Count - 2] + m_RSV[m_RSV.Count - 3]) / 3;
+                m_K = m_RSV.Last();
+                //Debug.WriteLine(m_K);
+                //Debug.WriteLine(m_D);
+
+                //// Set the Cross State.
+                //if (m_K > m_D)
+                //    m_State = Cross_State.ABOVE;
+                //else
+                //    m_State = Cross_State.BELOW;
+
             }
 
+            // START/STOP Switch
             if (m_Go)
             {
                 // If we already have a position on, and have either met out target or stop price, get out.
                 if (m_Position > 0 && (m_Tick.Price > m_Target || m_Tick.Price < m_Stop))
                 {
-                    bool m_Bool = m_Instrument.EnterOrder("S", m_Qty, "TARGET/STOP OUT");
+                    m_Instrument.EnterMarketOrder("S", m_Qty.ToString());
                 }
                 if (m_Position < 0 && (m_Tick.Price < m_Target || m_Tick.Price > m_Stop))
                 {
-                    bool m_Bool = m_Instrument.EnterOrder("B", m_Qty, "TARGET/STOP OUT");
+                    m_Instrument.EnterMarketOrder("B", m_Qty.ToString());
                 }
-                
+
                 // First time only and on reset, set initial state.
                 if (m_Start)
                 {
@@ -120,18 +129,18 @@ namespace HAC
                 {
                     // Change state.
                     m_State = Cross_State.ABOVE;
-                    
+
                     // If we are already short, first get flat.
                     if (m_Position < 0)
                     {
-                        m_Bool = m_Instrument.EnterOrder("B", m_Qty, "GET OUT");
+                        m_Instrument.EnterMarketOrder("B", m_Qty.ToString());
                     }
                     // Go long.
-                    m_Bool = m_Instrument.EnterOrder("B", m_Qty, "OPEN");
+                    m_Instrument.EnterMarketOrder("B", m_Qty.ToString());
 
                     // Set target price and stop loss price.
-                    m_Target = m_Tick.Price + m_TargetTicks * m_Instrument.TickSize();
-                    m_Stop = m_Tick.Price - m_StopTicks * m_Instrument.TickSize();
+                    m_Target = m_Tick.Price + m_TargetTicks * m_Instrument.get_TickSize();
+                    m_Stop = m_Tick.Price - m_StopTicks * m_Instrument.get_TickSize();
                 }
 
                 // Has there been a crossover down?
@@ -143,45 +152,45 @@ namespace HAC
                     // If we are already long, first get flat.
                     if (m_Position > 0)
                     {
-                        m_Bool = m_Instrument.EnterOrder("S", m_Qty, "GET OUT");
+                        m_Instrument.EnterMarketOrder("S", m_Qty.ToString());
                     }
                     // Go short.
-                    m_Bool = m_Instrument.EnterOrder("S", m_Qty, "OPEN");
+                    m_Instrument.EnterMarketOrder("S", m_Qty.ToString());
 
                     // Set target price and stop loss price.
-                    m_Target = m_Tick.Price - m_TargetTicks * m_Instrument.TickSize();
-                    m_Stop = m_Tick.Price + m_StopTicks * m_Instrument.TickSize();
+                    m_Target = m_Tick.Price - m_TargetTicks * m_Instrument.get_TickSize();
+                    m_Stop = m_Tick.Price + m_StopTicks * m_Instrument.get_TickSize();
                 }
             }
             // Send the data to the GUI.
             OnSystemUpdate(m_Tick.Price, m_Tick.Qty, m_D, m_K, m_Target, m_Stop);
         }
 
-        private void OnInstrumentFill(int qty, string BS, string price, string key)
+        private void OnInstrumentFill(Fill x)
         {
             // Update position.
-            if (BS == "B")
+            if (x.BuySell == "B")
             {
-                m_Position += qty;
+                m_Position += x.Qty;
             }
             else
             {
-                m_Position -= qty;
+                m_Position -= x.Qty;
             }
 
-            // Send the data to the TradeMacher.
-            Fill m_Fill = new Fill();
-            if (BS == "B")
-                m_Fill.BS = TradeType.BUY;
-            else
-                m_Fill.BS = TradeType.SELL;
+            //// Send the data to the TradeMacher.
+            //Fill m_Fill = new Fill();
+            //if (BS == "B")
+            //    m_Fill.BS = TradeType.BUY;
+            //else
+            //    m_Fill.BS = TradeType.SELL;
 
-            m_Fill.Price = Convert.ToDouble(price);
-            m_Fill.TradeID = key;
-            m_Fill.Qty = qty;
-            m_Matcher.Fill_Received(m_Fill);
+            //m_Fill.Price = Convert.ToDouble(price);
+            //m_Fill.TradeID = key;
+            //m_Fill.Qty = qty;
+            //m_Matcher.Fill_Received(m_Fill);
 
-            m_NetPos = m_Matcher.NetPos;
+            m_NetPos = m_Position;
         }
 
         public void StartStop()
@@ -200,9 +209,9 @@ namespace HAC
         public void ShutDown()
         {
             m_Go = false;
-            m_Instrument.ShutDown();
-            m_Instrument.OnInstrumentUpdate -= new InstrumentUpdateEventHandler(OnInstrumentUpdate);
-            m_Instrument.OnFill -= new FillEventHandler(OnInstrumentFill);
+            // m_Instrument.ShutDown();
+            //m_Instrument.OnInstrumentUpdate -= new InstrumentUpdateEventHandler(OnInstrumentUpdate);
+            //m_Instrument.OnFill -= new FillEventHandler(OnInstrumentFill);
             m_Instrument = null;
         }
 
@@ -214,12 +223,12 @@ namespace HAC
 
         public double Bid
         {
-            get { return m_Instrument.Bid; }
+            get { return m_Instrument.get_Bid(); }
         }
 
         public double Ask
         {
-            get { return m_Instrument.Ask; }
+            get { return m_Instrument.get_Ask(); }
         }
 
         public double Position
@@ -244,6 +253,7 @@ namespace HAC
             set { m_TargetTicks = value; }
         }
 
+        //This Tick is from GUI 
         public int Ticks
         {
             get { return m_Ticks; }
