@@ -125,8 +125,8 @@ namespace HAC
             m_Timer.Interval = 5000;
             if (textBox1.Text != "" && Convert.ToDouble(textBox1.Text) != 0.0)
                 chart1.Series[0].Points.AddXY(DateTime.Now.ToOADate(), textBox1.Text);
-            chart1.ChartAreas[0].AxisY.Maximum = Math.Ceiling(chart1.Series[0].Points.FindMaxByValue().YValues[0]) + 0.01;
-            chart1.ChartAreas[0].AxisY.Minimum = Math.Floor(chart1.Series[0].Points.FindMinByValue().YValues[0]) - 0.01;
+            chart1.ChartAreas[0].AxisY.Maximum = Math.Ceiling(chart1.Series[0].Points.FindMaxByValue().YValues[0]) + 0.5;
+            chart1.ChartAreas[0].AxisY.Minimum = Math.Floor(chart1.Series[0].Points.FindMinByValue().YValues[0]) - 0.5;
             chart1.ChartAreas[0].AxisY.Interval = Math.Floor(((chart1.ChartAreas[0].AxisY.Maximum) - (chart1.ChartAreas[0].AxisY.Minimum)) / 5.0);
 
             double removeBefore = DateTime.Now.AddSeconds(-4900.0).ToOADate();
