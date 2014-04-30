@@ -226,12 +226,12 @@ private void Client_TickSize(Object sender, TickSizeEventArgs e)
 			break;
 		 case Krs.Ats.IBNet.TickType.LastSize:
 			m_LastQty = Convert.ToDouble( e.Size );
+            Tick m_Tick = new Tick(DateTime.Now, m_Last, m_LastQty);
+            BidAskUpdate(m_Tick);
 			break;
 		 default:
 			 break;
-	 }
-     Tick m_Tick = new Tick(DateTime.Now, m_Last, m_LastQty);
-     BidAskUpdate(m_Tick);
+	 }  
 }
 
 private void Client_TickPrice(Object sender, TickPriceEventArgs e)
@@ -250,8 +250,8 @@ private void Client_TickPrice(Object sender, TickPriceEventArgs e)
 		 default:
 			 break;
 	}
-    Tick m_Tick = new Tick(DateTime.Now, m_Last, m_LastQty);
-    BidAskUpdate(m_Tick);
+    //Tick m_Tick = new Tick(DateTime.Now, m_Last, m_LastQty);
+    //BidAskUpdate(m_Tick);
  }
 
 ///////////////////////////////////////////////////

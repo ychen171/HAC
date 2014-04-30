@@ -57,7 +57,8 @@ namespace HAC
 
             m_Position = 0;
             m_Go = false;
-            m_Qty = 0;
+            m_Qty = 1;
+            m_Ticks = 999999999;
         }
 
         ~SystemManager03()
@@ -178,19 +179,19 @@ namespace HAC
                 m_Position -= x.Qty;
             }
 
-            //// Send the data to the TradeMacher.
-            //Fill m_Fill = new Fill();
-            //if (BS == "B")
-            //    m_Fill.BS = TradeType.BUY;
-            //else
-            //    m_Fill.BS = TradeType.SELL;
+            // Send the data to the TradeMacher.
+            TradeMatching.Fill m_Fill = new TradeMatching.Fill();
+            if (x.BuySell == "B")
+                m_Fill.BS = TradeMatching.TradeType.BUY;
+            else
+                m_Fill.BS = TradeMatching.TradeType.SELL;
 
-            //m_Fill.Price = Convert.ToDouble(price);
-            //m_Fill.TradeID = key;
-            //m_Fill.Qty = qty;
-            //m_Matcher.Fill_Received(m_Fill);
+            m_Fill.Price = Convert.ToDouble(x.Price);
+            m_Fill.TradeID = x.TradeID;
+            m_Fill.Qty = (int) x.Qty;
+            m_Matcher.Fill_Received(m_Fill);
 
-            m_NetPos = m_Position;
+            m_NetPos = m_Matcher.NetPos;
         }
 
         public void StartStop()
@@ -212,6 +213,8 @@ namespace HAC
             //m_Instrument.ShutDown();
             //m_Instrument.OnInstrumentUpdate -= new InstrumentUpdateEventHandler(OnInstrumentUpdate);
             //m_Instrument.OnFill -= new FillEventHandler(OnInstrumentFill);
+            m_Instrument.BidAskUpdate += new DataUpdateEventHandler(OnInstrumentUpdate);
+            m_Instrument.FillUpdate += new FillEventHandler(OnInstrumentFill);
             m_Instrument = null;
         }
 

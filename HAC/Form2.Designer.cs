@@ -93,6 +93,11 @@
             this.numericUpDown2.Size = new System.Drawing.Size(67, 25);
             this.numericUpDown2.TabIndex = 23;
             this.numericUpDown2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.numericUpDown2.Value = new decimal(new int[] {
+            14,
+            0,
+            0,
+            0});
             this.numericUpDown2.ValueChanged += new System.EventHandler(this.numericUpDown2_ValueChanged);
             // 
             // textBox1
@@ -234,6 +239,11 @@
             this.numericUpDown5.Size = new System.Drawing.Size(67, 25);
             this.numericUpDown5.TabIndex = 23;
             this.numericUpDown5.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.numericUpDown5.Value = new decimal(new int[] {
+            10,
+            0,
+            0,
+            0});
             this.numericUpDown5.ValueChanged += new System.EventHandler(this.numericUpDown5_ValueChanged);
             // 
             // numericUpDown4
@@ -245,6 +255,11 @@
             this.numericUpDown4.Size = new System.Drawing.Size(67, 25);
             this.numericUpDown4.TabIndex = 22;
             this.numericUpDown4.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.numericUpDown4.Value = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
             this.numericUpDown4.ValueChanged += new System.EventHandler(this.numericUpDown4_ValueChanged);
             // 
             // textBox4
