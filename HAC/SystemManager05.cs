@@ -46,9 +46,9 @@ namespace HAC
             m_Matcher = new TradeMatcher(RoundTurnMethod.FIFO);
 
             // Create a new Instrument object.
-            m_Instrument = new Instrument();
-            m_Instrument.OnInstrumentUpdate += new OnInstrumentUpdateEventHandler(OnInstrumentUpdate);
-            m_Instrument.OnInstrumentFill += new OnInstrumentFillEventHandler(OnInstrumentFill);
+            m_Instrument = new Instrument("ES", "201406", Instrument.InstrumentType.FUTURE);
+            m_Instrument.BidAskUpdate += new DataUpdateEventHandler(OnInstrumentUpdate);
+            m_Instrument.FillUpdate += new FillEventHandler(OnInstrumentFill);
 
             // Create a new SortedList to hold the Tick objects.
             m_TickList = new List<Tick>();
@@ -90,11 +90,11 @@ namespace HAC
                 // If we already have a position on, and have either met out target or stop price, get out.
                 if (m_Position > 0 && (m_Tick.Price > m_Target || m_Tick.Price < m_Stop))
                 {
-                    m_Bool = m_Instrument.EnterOrder("S", m_Qty, "TARGET/STOP OUT");
+                    m_Instrument.EnterMarketOrder("S", m_Qty.ToString());
                 }
                 if (m_Position < 0 && (m_Tick.Price < m_Target || m_Tick.Price > m_Stop))
                 {
-                    m_Bool = m_Instrument.EnterOrder("B", m_Qty, "TARGET/STOP OUT");
+                    m_Instrument.EnterMarketOrder("B", m_Qty.ToString());
                 }
 
                 // First time only and on reset, set initial state.
@@ -116,14 +116,14 @@ namespace HAC
                     // If we are already short, first get flat.
                     if (m_Position < 0)
                     {
-                        m_Bool = m_Instrument.EnterOrder("B", m_Qty, "GET OUT");
+                        m_Instrument.EnterMarketOrder("B", m_Qty.ToString());
                     }
                     // Go long.
-                    m_Bool = m_Instrument.EnterOrder("B", m_Qty, "OPEN");
+                    m_Instrument.EnterMarketOrder("B", m_Qty.ToString());
 
                     // Set target price and stop loss price.
-                    m_Target = m_Tick.Price + m_TargetTicks * m_Instrument.TickSize();
-                    m_Stop = m_Tick.Price - m_StopTicks * m_Instrument.TickSize();
+                    m_Target = m_Tick.Price + m_TargetTicks * m_Instrument.get_TickSize();
+                    m_Stop = m_Tick.Price - m_StopTicks * m_Instrument.get_TickSize();
                 }
 
                 // Has there been overbought? Sell Signal
@@ -135,42 +135,42 @@ namespace HAC
                     // If we are already long, first get flat.
                     if (m_Position > 0)
                     {
-                        m_Bool = m_Instrument.EnterOrder("S", m_Qty, "GET OUT");
+                        m_Instrument.EnterMarketOrder("S", m_Qty.ToString());
                     }
                     // Go short.
-                    m_Bool = m_Instrument.EnterOrder("S", m_Qty, "OPEN");
+                    m_Instrument.EnterMarketOrder("S", m_Qty.ToString());
 
                     // Set target price and stop loss price.
-                    m_Target = m_Tick.Price - m_TargetTicks * m_Instrument.TickSize();
-                    m_Stop = m_Tick.Price + m_StopTicks * m_Instrument.TickSize();
+                    m_Target = m_Tick.Price - m_TargetTicks * m_Instrument.get_TickSize();
+                    m_Stop = m_Tick.Price + m_StopTicks * m_Instrument.get_TickSize();
                 }
             }
             // Send the data to the GUI.
             OnSystemUpdate(m_Tick.Price, m_Tick.Qty, m_FI, m_F, m_Target, m_Stop);
         }
 
-        private void OnInstrumentFill(int qty, string BS, string px, string key)
+        private void OnInstrumentFill(Fill x)
         {
             // Update position.
-            if (BS == "B")
+            if (x.BuySell == "B")
             {
-                m_Position += qty;
+                m_Position += x.Qty;
             }
             else
             {
-                m_Position -= qty;
+                m_Position -= x.Qty;
             }
 
             // Send the data to the TradeMacher.
             TradeMatching.Fill m_Fill = new TradeMatching.Fill();
-            if (BS == "B")
+            if (x.BuySell == "B")
                 m_Fill.BS = TradeMatching.TradeType.BUY;
             else
                 m_Fill.BS = TradeMatching.TradeType.SELL;
 
-            m_Fill.Price = Convert.ToDouble(px);
-            m_Fill.TradeID = key;
-            m_Fill.Qty = qty;
+            m_Fill.Price = Convert.ToDouble(x.Price);
+            m_Fill.TradeID = x.TradeID;
+            m_Fill.Qty = (int)x.Qty;
             m_Matcher.Fill_Received(m_Fill);
 
             m_NetPos = m_Matcher.NetPos;
@@ -192,9 +192,11 @@ namespace HAC
         public void ShutDown()
         {
             m_Go = false;
-            m_Instrument.ShutDown();
-            m_Instrument.OnInstrumentUpdate -= new OnInstrumentUpdateEventHandler(OnInstrumentUpdate);
-            m_Instrument.OnInstrumentFill -= new OnInstrumentFillEventHandler(OnInstrumentFill);
+            //m_Instrument.ShutDown();
+            //m_Instrument.OnInstrumentUpdate -= new InstrumentUpdateEventHandler(OnInstrumentUpdate);
+            //m_Instrument.OnFill -= new FillEventHandler(OnInstrumentFill);
+            m_Instrument.BidAskUpdate += new DataUpdateEventHandler(OnInstrumentUpdate);
+            m_Instrument.FillUpdate += new FillEventHandler(OnInstrumentFill);
             m_Instrument = null;
         }
 
@@ -206,12 +208,12 @@ namespace HAC
 
         public double Bid
         {
-            get { return m_Instrument.Bid; }
+            get { return m_Instrument.get_Bid(); }
         }
 
         public double Ask
         {
-            get { return m_Instrument.Ask; }
+            get { return m_Instrument.get_Ask(); }
         }
 
         public double Position

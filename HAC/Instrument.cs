@@ -2,123 +2,367 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using TraderAPI;
-using TradeMatching;
+using Krs.Ats.IBNet;
+using Krs.Ats.IBNet.Contracts;
+using System.Threading;
+using System.Windows.Forms;
+using System.Diagnostics;
+
 
 namespace HAC
 {
-    class Instrument
+    delegate void UpdateEventHandler( double x);
+    delegate void FillEventHandler( Fill x );
+    delegate void DataUpdateEventHandler(Tick x);
+    delegate void FillUpdateEventHandler( Object sender, ExecDetailsEventArgs e );
+    //delegate void LimitOrderEventHandler();
+    delegate void PriceUpdateEventHandler(Object sender, TickPriceEventArgs e);
+    delegate void SizeUpdateEventHandler(Object sender, TickSizeEventArgs e);
+
+    class Instrument : Form
     {
-        private InstrNotifyClass m_Notify;
-        private InstrObjClass m_Instr;
-        private OrderSetClass m_OrderSet;
-        private TradeMatcher m_Matcher;
-        private double m_TickSize;
+    	private Contract m_Contract;
+    
+    	private static Dictionary < int, Instrument  > contracts;
+    	private static IBClient m_Client;
+    	private static int id;
+        //private static PriceUpdateEventHandler S_OnPriceUpdateDelegate;
+        //private static SizeUpdateEventHandler S_OnSizeUpdateDelegate;
+        //private static FillUpdateEventHandler S_OnFillUpdateDelegate;
+    	private PriceUpdateEventHandler OnPriceUpdateDelegate;
+    	private SizeUpdateEventHandler OnSizeUpdateDelegate;
+    	private FillUpdateEventHandler OnFillUpdateDelegate;
+	
+        //private void I_OnPriceDataUpdate( Object o, TickPriceEventArgs  );
+        //private void I_OnSizeDataUpdate( Object o, TickSizeEventArgs  );
+        //private void I_OnFill( Object o, ExecDetailsEventArgs  );
 
-        public event OnInstrumentUpdateEventHandler OnInstrumentUpdate;
-        public event OnInstrumentFillEventHandler OnInstrumentFill;
+        //private static void OnHistoricalDataUpdate( Object , HistoricalDataEventArgs  );
+	
+    	private static int NextOrderId;
+    	private int m_ID;
 
-        public Instrument()
+        //// these are KRS API Event Handlers that run on KRS threads
+        //private static void S_OnSizeDataUpdate(Object sender, TickSizeEventArgs e);
+        //private static void S_OnPriceDataUpdate(Object sender, TickPriceEventArgs e);
+        //private static void S_OnFill( Object sender, ExecDetailsEventArgs e );
+        //private static void S_OnError( Object o, Krs.Ats.IBNet.ErrorEventArgs  );
+        //private static void S_OnNextValidId( Object o, NextValidIdEventArgs  );
+
+        //// these are event handlers that run on my thread.
+        //private void Client_TickPrice(Object sender, TickPriceEventArgs e);
+        //private void Client_TickSize(Object sender, TickSizeEventArgs e);
+        //private void Client_Fill( Object sender, ExecDetailsEventArgs e);
+
+    	private int m_TickSize;
+    	private double m_Bid;
+    	private double m_Ask;
+    	private double m_BidQty;
+    	private double m_AskQty;
+    	private double m_Last;
+    	private double m_LastQty;
+	
+    	public String Symbol;
+
+    	public enum InstrumentType
+    	{
+    		EQUITY,
+    		FOREX,
+    		FUTURE,
+	    	INDEX,
+	    	OPTION
+	    };
+
+
+        public event FillEventHandler FillUpdate;
+	    //public event LimitOrderEventHandler LimitOrderUpdate;
+	    public event DataUpdateEventHandler BidAskUpdate;
+
+        public Instrument( String m_Symbol, String m_Expiry, InstrumentType m_Type )
         {
-            m_Matcher = new TradeMatcher(RoundTurnMethod.FIFO);
+    	    this.CreateHandle();
+        	this.Visible = false;
+    	
+        	if ( m_Client == null )
+        	{
+        		m_Client = new IBClient();
+        		m_Client.ThrowExceptions = true;
+        		m_Client.TickPrice += new EventHandler< TickPriceEventArgs >( S_OnPriceDataUpdate );
+        		m_Client.TickSize += new EventHandler< TickSizeEventArgs >( S_OnSizeDataUpdate);
+        		m_Client.Error += new EventHandler< ErrorEventArgs >( S_OnError);
+          		m_Client.NextValidId += new EventHandler< NextValidIdEventArgs >( S_OnNextValidId);
+            	//m_Client.OrderStatus += new EventHandler< OrderStatusEventArgs >( OnOrderStatus);
+        		m_Client.ExecDetails += new EventHandler< ExecDetailsEventArgs >( S_OnFill);
 
+            	m_Client.HistoricalData += new EventHandler< HistoricalDataEventArgs >( OnHistoricalDataUpdate );
 
-            // Create a new InstrObjClass object
-            m_Instr = new InstrObjClass();
+	        	m_Client.Connect("127.0.0.1", 7496, 0);
 
-            // Create a new InstrNotifyClass object from the InstrObjectClass object.
-            m_Notify = (InstrNotifyClass)m_Instr.CreateNotifyObj;
-            // Enable price updates.
-            m_Notify.EnablePriceUpdates = true;
-            // Set UpdateFilter so event will fire anytime any one of these changes in the 
-            // associated InstrObjClass object.
-            m_Notify.UpdateFilter = "LAST, LASTQTY";
-            // Subscribe to the OnNotifyUpdate event.
-            m_Notify.OnNotifyUpdate += new InstrNotifyClass.OnNotifyUpdateEventHandler(OnNotifyUpdate);
-            // Set the exchange, product, contract and product type.
-            m_Instr.Exchange = "CME";
-            m_Instr.Product = "ES";
-            m_Instr.Contract = "Sep12";
-            m_Instr.ProdType = "FUTURE";
-            // Open m_Instr.
-            m_Instr.Open(true);
+	        	contracts = new Dictionary< int, Instrument  >();
+        	}
 
-            // Create a new OrderSetClass object.
-            m_OrderSet = new OrderSetClass();
-            // Set the limits accordingly. If any of these limits is reached,
-            // trading through the API will be shut down automatically.
-            m_OrderSet.set_Set("MAXORDERS", 1000);
-            m_OrderSet.set_Set("MAXORDERQTY", 1000);
-            m_OrderSet.set_Set("MAXWORKING", 1000);
-            m_OrderSet.set_Set("MAXPOSITION", 1000);
-            // Enable deleting of orders. Enable the OnOrderFillData event. Enable order sending.
-            m_OrderSet.EnableOrderAutoDelete = true;
-            m_OrderSet.EnableOrderFillData = true;
-            m_OrderSet.EnableOrderSend = true;
-            // Subscribe to the OnOrderFillData event.
-            m_OrderSet.OnOrderFillData += new OrderSetClass.OnOrderFillDataEventHandler(OnOrderFillData);
-            // Open the m_OrderSet.
-            m_OrderSet.Open(true);
-            // Associate m_OrderSet with m_Instr.
-            m_Instr.OrderSet = m_OrderSet;
+        	m_ID = id;
+        	id++;
+	
+        	Symbol = m_Symbol;
+
+        	switch( m_Type )
+        	{
+        		case InstrumentType.EQUITY:
+        			m_Contract = new Equity( m_Symbol );
+		        	break;
+	        	case InstrumentType.FOREX:
+	        		//m_Contract = new Forex();
+	        		break;
+	        	case InstrumentType.FUTURE:
+	        		m_Contract = new Future( m_Symbol, "GLOBEX", m_Expiry );
+	        		break;
+		
+                    //case InstrumentType.FUTURE:
+                    //    m_Contract = new Future( "CCK2", "NYBOT", "JUN12" );
+                    //    break;
+
+	        	case InstrumentType.INDEX:
+        			m_Contract = new Index( m_Symbol, "CBOE" );
+        			break;
+        		case InstrumentType.OPTION:
+        			m_Contract = new Option( "IBM", "IBM   120518C00170000", 2012, 5, Krs.Ats.IBNet.RightType.Call, 170 );
+        			break;
+        	};
+
+            m_Client.RequestMarketData( m_ID, m_Contract, null, false, false );
+        	contracts.Add( m_ID, this );
+
+        	//client.RequestExecutions(34, new ExecutionFilter());
+	
+            ///////////////////////////////////////////////////////////////////
+        	////////////  These delegates perform cross-thread operation ///////
+        	////////////////////////////////////////////////////////////////////
+        	OnPriceUpdateDelegate = new PriceUpdateEventHandler( Client_TickPrice );
+        	OnSizeUpdateDelegate = new SizeUpdateEventHandler( Client_TickSize );
+        	OnFillUpdateDelegate = new FillUpdateEventHandler( Client_Fill );
+        	////////////////////////////////////////////////////////////////////
         }
 
-        private void OnNotifyUpdate(InstrNotifyClass pNotify, InstrObjClass pInstr)
-        {
-            Tick m_Tick = new Tick(DateTime.Now, Convert.ToDouble(pInstr.get_Get("LAST")), Convert.ToDouble(pInstr.get_Get("LASTQTY")));
-            OnInstrumentUpdate(m_Tick);
-        }
+~Instrument()
+{
+	m_Client.Disconnect();
+	m_Client.ReadThread.Abort();
+	m_Client.ReadThread.Join();
+	m_Client.TickPrice -= new EventHandler< TickPriceEventArgs >( S_OnPriceDataUpdate );
+	m_Client.TickSize -= new EventHandler< TickSizeEventArgs >( S_OnSizeDataUpdate);
+	m_Client.Error -= new EventHandler< ErrorEventArgs >( S_OnError );
+	m_Client.NextValidId -= new EventHandler< NextValidIdEventArgs >( S_OnNextValidId );
+	//m_Client.OrderStatus -= new EventHandler< OrderStatusEventArgs >( &OnOrderStatus);
+	m_Client.ExecDetails -= new EventHandler< ExecDetailsEventArgs >( S_OnFill);
+	
+	m_Contract = null;
+	
+	m_Client = null;
+}
 
-        public bool EnterOrder(string m_BS, double m_Qty, string m_FFT)
-        {
-            try
-            {
-                OrderProfileClass m_Profile = new OrderProfileClass();
-                m_Profile.Instrument = m_Instr;
-                m_Profile.set_Set("ACCT", "12345");
-                m_Profile.set_Set("BUYSELL", m_BS);
-                m_Profile.set_Set("ORDERTYPE", "M");
-                m_Profile.set_Set("ORDERQTY", m_Qty.ToString());
-                m_Profile.set_Set("FFT", m_FFT);
-                long myResult = m_OrderSet.SendOrder(m_Profile);
-                return true;
-            }
-            catch (Exception e)
-            {
-                return false;
-            }
-        }
+private void S_OnError( Object sender, Krs.Ats.IBNet.ErrorEventArgs e )
+{
+	//MessageBox.Show( e.ErrorMsg );
+}
 
-        private void OnOrderFillData(FillObj m_Fill)
-        {
-            
-            OnInstrumentFill(Convert.ToInt32(m_Fill.get_Get("QTY")),
-                    Convert.ToString(m_Fill.get_Get("BUYSELL")),
-                    Convert.ToString(m_Fill.get_Get("PRICE")),
-                    Convert.ToString(m_Fill.get_Get("KEY")));
-        }
-        public double Bid
-        {
-            get { return Convert.ToDouble(m_Instr.get_Get("BID")); }
-        }
-        public double Ask
-        {
-            get { return Convert.ToDouble(m_Instr.get_Get("ASK")); }
-        }
+private void S_OnNextValidId(Object sender, NextValidIdEventArgs e)
+{
+    NextOrderId = e.OrderId;
+}
+        
+///////////////////////////////////////////////////////////////////////////////////
+//////////////////////// Real time tick data //////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+///////  Switch event update to main thread ///////////////////////////////////////
 
-        public double TickSize()
-        {
-            return m_Instr.TickSize;
-        }
+private void S_OnPriceDataUpdate(Object sender, TickPriceEventArgs e)
+{
+	Instrument p = contracts[ e.TickerId ];
+	p.I_OnPriceDataUpdate( sender, e );
+}
+private void I_OnPriceDataUpdate(Object sender, TickPriceEventArgs e)
+{
+	this.BeginInvoke( OnPriceUpdateDelegate, sender, e );
+}
 
-        public void ShutDown()
-        {
-            m_Notify.OnNotifyUpdate -= new InstrNotifyClass.OnNotifyUpdateEventHandler(OnNotifyUpdate);
-            m_OrderSet.OnOrderFillData -= new OrderSetClass.OnOrderFillDataEventHandler(OnOrderFillData);
-            m_Notify = null;
-            m_Instr = null;
-            m_OrderSet = null;
-        }
+private void S_OnSizeDataUpdate(Object sender, TickSizeEventArgs e)
+{
+	Instrument p = contracts[ e.TickerId ];
+	p.I_OnSizeDataUpdate( sender, e );
+}
+private void S_OnFill(Object sender, ExecDetailsEventArgs e)
+{
+	foreach( KeyValuePair< int, Instrument  > x in contracts )
+	{
+		if ( e.Contract.Symbol == x.Value.Symbol )
+		{
+			x.Value.I_OnFill( sender, e );
+			break;
+		}
+	}
+}
+private void I_OnSizeDataUpdate(Object sender, TickSizeEventArgs e)
+{
+	this.BeginInvoke( OnSizeUpdateDelegate, sender, e );
+}
+private void I_OnFill(Object sender, ExecDetailsEventArgs e)
+{
+	this.BeginInvoke( OnFillUpdateDelegate, sender, e );
+}		
+/////////  Update form from the main thread ////////////////////////////////////////
+
+private void Client_TickSize(Object sender, TickSizeEventArgs e)
+{
+	 this.Visible = false;
+
+	 switch ( e.TickType )
+	 {
+		 case Krs.Ats.IBNet.TickType.BidSize:
+			m_BidQty = Convert.ToDouble( e.Size );
+			break;
+		 case Krs.Ats.IBNet.TickType.AskSize:
+			m_AskQty = Convert.ToDouble( e.Size );
+			break;
+		 case Krs.Ats.IBNet.TickType.LastSize:
+			m_LastQty = Convert.ToDouble( e.Size );
+            Tick m_Tick = new Tick(DateTime.Now, m_Last, m_LastQty);
+            BidAskUpdate(m_Tick);
+			break;
+		 default:
+			 break;
+	 }  
+}
+
+private void Client_TickPrice(Object sender, TickPriceEventArgs e)
+{
+	switch ( e.TickType )
+	{
+		case Krs.Ats.IBNet.TickType.BidPrice:
+			m_Bid = Convert.ToDouble( e.Price );
+			break;
+		 case Krs.Ats.IBNet.TickType.AskPrice:
+			m_Ask = Convert.ToDouble( e.Price );
+			break;
+		 case Krs.Ats.IBNet.TickType.LastPrice:
+			m_Last = Convert.ToDouble( e.Price );
+			break;
+		 default:
+			 break;
+	}
+    //Tick m_Tick = new Tick(DateTime.Now, m_Last, m_LastQty);
+    //BidAskUpdate(m_Tick);
+ }
+
+///////////////////////////////////////////////////
+
+
+private void Client_Fill(Object sender, ExecDetailsEventArgs e)
+{
+	Fill m_Fill = new Fill();
+	m_Fill.TradeID = e.Execution.OrderId.ToString();
+	m_Fill.BuySell = e.Execution.Side.ToString().Substring(0,1);
+	m_Fill.Price = e.Execution.Price;
+	m_Fill.Qty = e.Execution.Shares;
+	m_Fill.Time = DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss");
+	m_Fill.Symbol = e.Contract.Symbol;
+
+	FillUpdate( m_Fill );
+}
+
+
+public void CancelOrder( String m_ID  )
+{
+	m_Client.CancelOrder( Convert.ToInt32( m_ID ) );
+}
+
+public void EnterMarketOrder( String BS, String m_Qty )
+{
+	Krs.Ats.IBNet.Order m_Order = new Order();
+	m_Order.Action = ( BS == "B" ? ActionSide.Buy : ActionSide.Sell );
+	m_Order.OutsideRth = false;
+	m_Order.OrderType = OrderType.Market;
+	m_Order.TotalQuantity = Convert.ToInt32( m_Qty );
+	m_Client.PlaceOrder( NextOrderId, m_Contract, m_Order );
+
+	++NextOrderId;
+}
+
+public void EnterLimitOrder( String BS, String m_Qty, String m_Px )
+{
+	Krs.Ats.IBNet.Order m_Order = new Order();
+	m_Order.Action = ( BS == "B" ? ActionSide.Buy : ActionSide.Sell );
+	m_Order.OutsideRth = false;
+	m_Order.LimitPrice = Convert.ToDecimal( m_Px );
+	m_Order.OrderType = OrderType.Limit;
+	m_Order.TotalQuantity = Convert.ToInt32( m_Qty );
+	m_Client.PlaceOrder( NextOrderId, m_Contract, m_Order );
+
+	//LimitOrderUpdate( new Order( NextOrderId.ToString(), m_Contract.Symbol, m_Px, m_Qty, BS, DateTime.Now.ToString(), null ) );
+	++NextOrderId;
+}
+
+
+
+public void GetHistoricalData()
+{
+
+	//System.Void RequestHistoricalData(System.Int32 tickerId, 
+	                                 // Krs.Ats.IBNet.Contract contract, 
+	                                 // System.DateTime endDateTime, 
+	                                 // System.String duration, 
+	                                 // Krs.Ats.IBNet.BarSize barSizeSetting, 
+	                                 // Krs.Ats.IBNet.HistoricalDataType whatToShow, 
+	                                 // System.Int32 useRth)
+ 
+	Krs.Ats.IBNet.BarSize barSizeSetting = Krs.Ats.IBNet.BarSize.FifteenMinutes;
+	Krs.Ats.IBNet.HistoricalDataType whatToShow = Krs.Ats.IBNet.HistoricalDataType.Trades;
+
+	DateTime endDateTime = new DateTime(2012, 4, 6, 3, 00, 0);
+		
+	m_Client.RequestHistoricalData( m_ID, m_Contract, endDateTime, "1 M", barSizeSetting, whatToShow, 0 );
+
+}
+
+private void OnHistoricalDataUpdate(Object o, HistoricalDataEventArgs m_Args)
+{
+
+	Debug.WriteLine( m_Args.Open.ToString() );
+
+}
+
+public double get_TickSize()
+{
+	return 10.0;//m_Contract.Multiplier;
+}
+
+public double get_Bid()
+{
+	return m_Bid;
+}
+
+public double get_Ask()
+{
+	return m_Ask;
+}
+public double get_BidQty()
+{
+	return m_BidQty;
+}
+
+public double get_AskQty()
+{
+	return m_AskQty;
+}
+public double get_Last()
+{
+	return m_Last;
+}
+public double get_LastQty()
+{
+	return m_LastQty;
+}
+
+
     }
 }

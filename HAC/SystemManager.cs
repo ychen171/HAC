@@ -8,34 +8,35 @@ using System.Diagnostics;
 
 namespace HAC
 {
-    // Money Flow Index Strategy
-    class SystemManager04
+    class SystemManager
     {
         private Instrument m_Instrument;
         private List<Tick> m_TickList;
 
         private bool m_Go;
         private bool m_Start;
-
+        //Ticks from GUI
         private int m_Ticks;
 
-        private double m_WeightedDiff;
-        private double m_UpTotal;
-        private double m_DownTotal;
-        private double m_MF;
-        private double m_MFI;
+        private double m_Max;
+        private double m_Min;
+        private List<double> m_RSV;
+        private double m_K;
+        private double m_D;
 
         private double m_Position;
         private double m_NetPos;
 
         private bool m_Bool;
-        private Value_State m_State;
+        private Cross_State m_State;
 
         private double m_Qty;
 
         private double m_Target;
         private double m_Stop;
+        //Target ticks from GUI
         private int m_TargetTicks;
+        //Stop ticks from GUI
         private int m_StopTicks;
 
         private TradeMatcher m_Matcher;
@@ -43,7 +44,7 @@ namespace HAC
         public event OnSystemUpdateEventHandler OnSystemUpdate;
         // public event FillEventHandler OnFill;
 
-        public SystemManager04()
+        public SystemManager()
         {
             m_Matcher = new TradeMatcher(RoundTurnMethod.FIFO);
 
@@ -54,13 +55,14 @@ namespace HAC
 
             // Create a new SortedList to hold the Tick objects.
             m_TickList = new List<Tick>();
+            m_RSV = new List<double>();
 
             m_Position = 0;
             m_Go = false;
             m_Qty = 0;
         }
 
-        ~SystemManager04()
+        ~SystemManager()
         {
             //Debug::WriteLine( "SystemManager dying." );
         }
@@ -69,34 +71,34 @@ namespace HAC
         {
             m_TickList.Add(m_Tick);
 
-            m_MFI = 50;
-            m_MF = 0;
+            m_K = 0;
+            m_D = 0;
 
-            // Begin calculation
+            // Begin calculating
             if (m_Ticks > 0 && m_TickList.Count > m_Ticks)
             {
-                // Calculate the RS and RSI.
-                m_UpTotal = 0;
-                m_DownTotal = 0;
+                // Calculate the K and D values.
+                m_Max = 0;
+                m_Min = 1000000000;
                 for (int i = m_TickList.Count - m_Ticks; i < m_TickList.Count - 1; i++)
                 {
-                    m_WeightedDiff = (m_TickList[i].Price - m_TickList[i - 1].Price) * m_TickList[i].Qty;
-                    if (m_WeightedDiff > 0)
-                        m_UpTotal += m_WeightedDiff;
-                    else if (m_WeightedDiff < 0)
-                        m_DownTotal -= m_WeightedDiff;
+                    m_Max = Math.Max(m_Max, m_TickList[i].Price);
+                    m_Min = Math.Min(m_Min, m_TickList[i].Price);
                 }
-                m_MF = m_UpTotal / m_DownTotal;
-                m_MFI = 100 - 100 / (1 + m_MF);
-                Debug.WriteLine(m_MFI);
+                m_RSV.Add((m_TickList.Last().Price - m_Min) / (m_Max - m_Min) * 100);
+                //Debug.WriteLine(m_RSV.Last());
+                if (m_RSV.Count >= 3)
+                    m_D = (m_RSV[m_RSV.Count - 1] + m_RSV[m_RSV.Count - 2] + m_RSV[m_RSV.Count - 3]) / 3;
+                m_K = m_RSV.Last();
+                //Debug.WriteLine(m_K);
+                //Debug.WriteLine(m_D);
 
-                //// Set the Value State.
-                //if (m_MFI < 40)
-                //    m_State = Value_State.LOW;
-                //else if (m_MFI < 60)
-                //    m_State = Value_State.MID;
+                //// Set the Cross State.
+                //if (m_K > m_D)
+                //    m_State = Cross_State.ABOVE;
                 //else
-                //    m_State = Value_State.HIGH;
+                //    m_State = Cross_State.BELOW;
+
             }
 
             // START/STOP Switch
@@ -115,20 +117,18 @@ namespace HAC
                 // First time only and on reset, set initial state.
                 if (m_Start)
                 {
-                    if (m_MFI >= 60)
-                        m_State = Value_State.HIGH;
-                    else if (m_MFI >= 40)
-                        m_State = Value_State.MID;
+                    if (m_K > m_D)
+                        m_State = Cross_State.ABOVE;
                     else
-                        m_State = Value_State.LOW;
+                        m_State = Cross_State.BELOW;
                     m_Start = false;
                 }
 
-                // Has there been oversold?
-                if (m_MFI < 40 && m_State != Value_State.LOW)
+                // Has there been a crossover up?
+                if (m_K > m_D && m_State == Cross_State.BELOW)
                 {
                     // Change state.
-                    m_State = Value_State.LOW;
+                    m_State = Cross_State.ABOVE;
 
                     // If we are already short, first get flat.
                     if (m_Position < 0)
@@ -143,11 +143,11 @@ namespace HAC
                     m_Stop = m_Tick.Price - m_StopTicks * m_Instrument.get_TickSize();
                 }
 
-                // Has there been overbought?
-                if (m_MFI >= 60 && m_State != Value_State.HIGH)
+                // Has there been a crossover down?
+                if (m_K < m_D && m_State == Cross_State.ABOVE)
                 {
                     // Change state.
-                    m_State = Value_State.HIGH;
+                    m_State = Cross_State.BELOW;
 
                     // If we are already long, first get flat.
                     if (m_Position > 0)
@@ -163,7 +163,7 @@ namespace HAC
                 }
             }
             // Send the data to the GUI.
-            OnSystemUpdate(m_Tick.Price, m_Tick.Qty, m_MFI, m_MF, m_Target, m_Stop);
+            OnSystemUpdate(m_Tick.Price, m_Tick.Qty, m_D, m_K, m_Target, m_Stop);
         }
 
         private void OnInstrumentFill(Fill x)
@@ -178,19 +178,19 @@ namespace HAC
                 m_Position -= x.Qty;
             }
 
-            // Send the data to the TradeMacher.
-            TradeMatching.Fill m_Fill = new TradeMatching.Fill();
-            if (x.BuySell == "B")
-                m_Fill.BS = TradeMatching.TradeType.BUY;
-            else
-                m_Fill.BS = TradeMatching.TradeType.SELL;
+            //// Send the data to the TradeMacher.
+            //Fill m_Fill = new Fill();
+            //if (BS == "B")
+            //    m_Fill.BS = TradeType.BUY;
+            //else
+            //    m_Fill.BS = TradeType.SELL;
 
-            m_Fill.Price = Convert.ToDouble(x.Price);
-            m_Fill.TradeID = x.TradeID;
-            m_Fill.Qty = (int)x.Qty;
-            m_Matcher.Fill_Received(m_Fill);
+            //m_Fill.Price = Convert.ToDouble(price);
+            //m_Fill.TradeID = key;
+            //m_Fill.Qty = qty;
+            //m_Matcher.Fill_Received(m_Fill);
 
-            m_NetPos = m_Matcher.NetPos;
+            m_NetPos = m_Position;
         }
 
         public void StartStop()
@@ -209,11 +209,9 @@ namespace HAC
         public void ShutDown()
         {
             m_Go = false;
-            //m_Instrument.ShutDown();
+            // m_Instrument.ShutDown();
             //m_Instrument.OnInstrumentUpdate -= new InstrumentUpdateEventHandler(OnInstrumentUpdate);
             //m_Instrument.OnFill -= new FillEventHandler(OnInstrumentFill);
-            m_Instrument.BidAskUpdate += new DataUpdateEventHandler(OnInstrumentUpdate);
-            m_Instrument.FillUpdate += new FillEventHandler(OnInstrumentFill);
             m_Instrument = null;
         }
 
@@ -255,6 +253,7 @@ namespace HAC
             set { m_TargetTicks = value; }
         }
 
+        //This Tick is from GUI 
         public int Ticks
         {
             get { return m_Ticks; }
